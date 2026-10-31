@@ -1,77 +1,87 @@
-import jwt from 'jsonwebtoken'
-import User from '../models/User.js'
 
-/**
- * Hybrid authentication middleware that supports both sessions and JWT tokens
- * This helps with incognito mode and cross-origin cookie issues
- */
+import jwt from 'jsonwebtoken';
+import User from '../models/User.js';
+
 export const hybridAuthMiddleware = async (req, res, next) => {
   try {
-    let user = null
-    let authMethod = 'none'
+    let user = null;
+    let authMethod = 'none';
 
-    // Method 1: Try session-based auth first (preferred)
-    if (req.session && req.session.userId) {
-      console.log('🔍 Hybrid Auth: Trying session auth')
-      user = await User.findById(req.session.userId).select('-passwordHash')
-      if (user && user.isActive) {
-        authMethod = 'session'
-        console.log('✅ Hybrid Auth: Session auth successful')
+    // 1. Try session authentication first
+    const sessionUserId = req.session?.userId;
+
+    if (sessionUserId) {
+      console.log('🔍 Hybrid Auth: Trying session auth');
+
+      user = await User.findById(sessionUserId).select('-passwordHash');
+
+      if (user?.isActive) {
+        authMethod = 'session';
+        console.log('✅ Hybrid Auth: Session auth successful');
+      } else {
+        user = null;
       }
     }
 
-    // Method 2: Fallback to JWT token (for incognito mode)
+    // 2. Fall back to JWT authentication
     if (!user) {
-      const authHeader = req.headers.authorization
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        console.log('🔍 Hybrid Auth: Trying JWT auth')
-        const token = authHeader.substring(7)
-        
+      const authHeader = req.headers.authorization;
+
+      if (authHeader?.startsWith('Bearer ')) {
+        console.log('🔍 Hybrid Auth: Trying JWT auth');
+
+        const token = authHeader.slice(7);
+
         try {
-          const decoded = jwt.verify(token, process.env.JWT_SECRET)
-          user = await User.findById(decoded.userId).select('-passwordHash')
-          if (user && user.isActive) {
-            authMethod = 'jwt'
-            console.log('✅ Hybrid Auth: JWT auth successful')
+          const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+          if (typeof decoded === 'object' && decoded.userId) {
+            user = await User.findById(decoded.userId)
+              .select('-passwordHash');
+
+            if (user?.isActive) {
+              authMethod = 'jwt';
+              console.log('✅ Hybrid Auth: JWT auth successful');
+            } else {
+              user = null;
+            }
           }
-        } catch (jwtError) {
-          console.log('❌ Hybrid Auth: JWT verification failed:', jwtError.message)
+        } catch (error) {
+          console.log('❌ Hybrid Auth: JWT verification failed');
+          user = null;
         }
       }
     }
 
-    // Check if authentication was successful
+    // 3. Reject unauthenticated requests
     if (!user) {
-      console.log('❌ Hybrid Auth: No valid authentication found')
-      return res.status(401).json({ 
-        success: false, 
+      console.log('❌ Hybrid Auth: No valid authentication found');
+
+      return res.status(401).json({
+        success: false,
         message: 'Access denied. Please log in.',
         authMethod: 'none'
-      })
+      });
     }
 
-    if (!user.isActive) {
-      console.log('❌ Hybrid Auth: User account is deactivated')
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Account is deactivated.' 
-      })
-    }
+    // 4. Make authenticated user available to downstream routes
+    req.user = user;
+    req.authMethod = authMethod;
 
-    console.log(`✅ Hybrid Auth: User authenticated via ${authMethod}:`, user.name)
-    req.user = user
-    req.authMethod = authMethod
-    next()
+    console.log(
+      `✅ Hybrid Auth: User authenticated via ${authMethod}: ${user.name}`
+    );
 
+    return next();
   } catch (error) {
-    console.error('Hybrid auth middleware error:', error)
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error during authentication.' 
-    })
-  }
-}
+    console.error('Hybrid auth middleware error:', error.message);
 
-// Export as default and named export
-export default hybridAuthMiddleware
-export const hybridAuth = hybridAuthMiddleware
+    return res.status(500).json({
+      success: false,
+      message: 'Server error during authentication.'
+    });
+  }
+};
+
+export const hybridAuth = hybridAuthMiddleware;
+export default hybridAuthMiddleware;

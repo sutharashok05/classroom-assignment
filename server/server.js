@@ -114,7 +114,7 @@ const allowedOrigins = [
   'https://classroom-assignment-pqcj-git-main-visheshj2005s-projects.vercel.app',
   'https://classroom-assignment-pqcj-visheshj2005s-projects.vercel.app',
   // Ngrok domains for hybrid deployment
-  'https://paronymous-jacki-gelatinously.ngrok-free.dev'
+  'https://kobe-nonextensile-socially.ngrok-free.dev/api'
 ].filter(Boolean)
 
 console.log('🌐 Allowed CORS Origins:', allowedOrigins)
@@ -207,11 +207,11 @@ app.use(session({
     touchAfter: 24 * 3600 // lazy session update
   }),
   cookie: {
-    secure: true, // Must be true for HTTPS cross-origin requests
+    secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
-    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    sameSite: 'none', // Required for cross-origin requests
-    domain: undefined // Let browser handle domain
+    maxAge: 30 * 24 * 60 * 60 * 1000,
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    domain: undefined
   },
   name: 'classroom.sid', // Custom session name
   proxy: true // Always trust proxy

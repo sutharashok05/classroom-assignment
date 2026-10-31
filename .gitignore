@@ -1,4 +1,7 @@
-# Logs
+
+# ==========================================
+# LOGS
+# ==========================================
 logs/
 *.log
 npm-debug.log*
@@ -7,44 +10,72 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Dependencies
+# ==========================================
+# DEPENDENCIES
+# ==========================================
 node_modules/
 **/node_modules/
 
-# Build output
+# ==========================================
+# BUILD OUTPUT
+# ==========================================
 dist/
 dist-ssr/
+build/
 **/dist/
+coverage/
 
-# Local environment files and secrets
+# ==========================================
+# ENVIRONMENT FILES & SECRETS
+# ==========================================
 .env
 .env.*
 !.env.example
 !.env.*.example
 
-# Local-only configuration
+# Explicitly ignore local environment files
+server/.env
+server/.env.*
+!server/.env.example
+!server/.env.*.example
+
+# ==========================================
+# LOCAL CONFIGURATION
+# ==========================================
 *.local
 
-# Uploads and user files (verify before excluding)
+# ==========================================
+# UPLOADS & USER DATA
+# ==========================================
 server/uploads/
 
-# Editor directories and files
+# ==========================================
+# EDITOR CONFIGURATION
+# ==========================================
 .vscode/*
 !.vscode/extensions.json
 .idea/
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
 
-# Vercel local configuration
+# ==========================================
+# VERCEL
+# ==========================================
 .vercel/
 
-# Coverage and test output
-coverage/
-
-# OS files
+# ==========================================
+# OPERATING SYSTEM FILES
+# ==========================================
+.DS_Store
 Thumbs.db
 desktop.ini
+
+# ==========================================
+# TEMPORARY FILES
+# ==========================================
+*.tmp
+*.temp
+*.bak

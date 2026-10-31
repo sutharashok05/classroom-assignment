@@ -1,56 +1,69 @@
 import User from '../models/User.js'
 
 // Verify session-based authentication
+
 export const authMiddleware = async (req, res, next) => {
   try {
-    // Debug session information
-    console.log('🔍 Auth Middleware Debug:')
-    console.log('- URL:', req.url)
-    console.log('- Method:', req.method)
-    console.log('- Session exists:', !!req.session)
-    console.log('- Session ID:', req.session?.id)
-    console.log('- Session userId:', req.session?.userId)
-    console.log('- Cookies:', req.headers.cookie ? 'Present' : 'Missing')
-    
-    // Check if user is logged in via session
-    if (!req.session || !req.session.userId) {
-      console.log('❌ Session validation failed: No session or userId')
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Access denied. Please log in.' 
-      })
+    console.log('🔍 Auth Middleware Debug:', {
+      url: req.originalUrl,
+      method: req.method,
+      sessionExists: !!req.session,
+      sessionUserId: req.session?.userId,
+      userAlreadySet: !!req.user
+    });
+
+    // If a previous, trusted authentication middleware
+    // has already authenticated the user, continue.
+    if (req.user?._id) {
+      return next();
     }
 
-    const user = await User.findById(req.session.userId).select('-passwordHash')
-    
+    // Otherwise, authenticate using the session.
+    const userId = req.session?.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Access denied. Please log in.'
+      });
+    }
+
+    const user = await User.findById(userId).select('-passwordHash');
+
     if (!user) {
-      // Clear invalid session
-      req.session.destroy()
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Invalid session. User not found.' 
-      })
+      if (req.session) {
+        req.session.destroy(() => {});
+      }
+
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid session. Please log in again.'
+      });
     }
 
     if (!user.isActive) {
-      // Clear session for deactivated user
-      req.session.destroy()
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Account is deactivated.' 
-      })
+      if (req.session) {
+        req.session.destroy(() => {});
+      }
+
+      return res.status(401).json({
+        success: false,
+        message: 'Account is deactivated.'
+      });
     }
 
-    req.user = user
-    next()
+    req.user = user;
+    return next();
   } catch (error) {
-    console.error('Auth middleware error:', error)
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error during authentication.' 
-    })
+    console.error('Auth middleware error:', error.message);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Server error during authentication.'
+    });
   }
-}
+};
+
 
 // Role-based access control
 export const roleMiddleware = (...roles) => {
